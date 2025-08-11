@@ -1,4 +1,3 @@
-// src/components/ChatWindow.jsx
 import React, { useState } from "react";
 import { FaRegPaperPlane, FaImage, FaFilePdf } from "react-icons/fa6";
 import { marked } from "marked";

@@ -1,12 +1,8 @@
-// src/services/huggingFaceService.js
-
 import { InferenceClient } from "@huggingface/inference";
 
 const client = new InferenceClient(import.meta.env.VITE_HF_TOKEN);
 
-// Tambahkan "export" di sini
 export async function chatCompletion(model, chatHistory, parameters = {}) {
-  // ... kode fungsi
   if (!import.meta.env.VITE_HF_TOKEN) {
     throw new Error(
       "Hugging Face API token is not set. Please check your .env file."
