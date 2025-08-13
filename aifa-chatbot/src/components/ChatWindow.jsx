@@ -1,20 +1,38 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { FaRegPaperPlane, FaImage, FaFilePdf } from "react-icons/fa6";
 import { marked } from "marked";
 import DOMPurify from "dompurify";
 import Markdown from "react-markdown";
-import { chatCompletion } from "../services/huggingFaceService";
+
 
 const ChatWindow = ({ chatHistory, setChatHistory }) => {
   const [prompt, setPrompt] = useState("");
-  const [model, setModel] = useState("meta-llama/Meta-Llama-3.1-8B-Instruct");
+  const [selectedModel, setSelectedModel] = useState("");
+const [availableModels, setAvailableModels] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [file, setFile] = useState(null);
+
+  // get the list from backend
+  useEffect(() => {
+  const fetchModels = async () => {
+    try {
+      const response = await fetch("http://localhost:5000/api/models");
+      const models = await response.json();
+      setAvailableModels(models);
+      if (models.length > 0) {
+        setSelectedModel(models[0]); // default
+      }
+    } catch (error) {
+      console.error("Error fetching models:", error);
+    }
+  };
+  fetchModels();
+}, []);
 
   // send questions
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    if (prompt.trim() === "" || isLoading) return;
+    if (prompt.trim() === "" || isLoading || !selectedModel) return;
 
     const userMessage = { role: "user", content: prompt };
     const updatedChatHistory = [...chatHistory, userMessage];
@@ -23,10 +41,21 @@ const ChatWindow = ({ chatHistory, setChatHistory }) => {
     setIsLoading(true);
 
     try {
-      const parameters = { max_new_tokens: 256 };
-      
-      // send chat to API
-      const botResponseText = await chatCompletion(model, updatedChatHistory, parameters);
+      // Kirim chat ke server backend lokal
+      const response = await fetch("http://localhost:5000/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt: prompt, model: selectedModel }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Gagal mendapatkan respons dari server.");
+      }
+
+      const data = await response.json();
+      const botResponseText = data.response;
 
       const botMessage = { role: "assistant", content: botResponseText };
       setChatHistory((prevHistory) => [...prevHistory, botMessage]);
@@ -44,7 +73,7 @@ const ChatWindow = ({ chatHistory, setChatHistory }) => {
 
   const handleFileChange = (e) => {
     setFile(e.target.files[0]);
-    // Logic buat ngirim file nanti
+    // logic buat ngirim file nanti
   };
 
   // Komponen untuk menampilkan pesan dengan Markdown
@@ -67,15 +96,20 @@ const ChatWindow = ({ chatHistory, setChatHistory }) => {
       <div className="flex justify-between items-center p-4 bg-gray-800 border-b border-gray-700">
         <div className="text-lg font-bold">Percakapan</div>
         <select
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
+          value={selectedModel}
+          onChange={(e) => setSelectedModel(e.target.value)}
           className="bg-gray-700 text-white rounded-md px-2 py-1"
           disabled={isLoading}
         >
-          <option value="meta-llama/Meta-Llama-3.1-8B-Instruct">
-            Llama 3.1
-          </option>
-          {/* Opsi model lain bisa ditambahkan di sini */}
+          {availableModels.length > 0 ? (
+            availableModels.map((modelName) => (
+              <option key={modelName} value={modelName}>
+                {modelName}
+              </option>
+            ))
+          ) : (
+            <option>Loading models...</option>
+          )}
         </select>
       </div>
 
